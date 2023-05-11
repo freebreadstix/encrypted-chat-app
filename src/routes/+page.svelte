@@ -2,11 +2,28 @@
 	import { supabase } from '$lib/db';
 	import { onMount } from 'svelte';
 
+	export let data;
+
 	let messages = [];
+	let authenticated;
 	const TABLE_NAME = import.meta.env.VITE_SUPABASE_TABLE_NAME;
+
+	$: authenticated = data?.session?.user;
 
 	onMount(() => {
 		fetchMessages();
+		console.log(authenticated);
+		if (authenticated) {
+			const table_subscription = supabase
+				.channel('any')
+				.on('postgres_changes', { event: '*', schema: 'public', table: TABLE_NAME }, (data) => {
+					console.log(data);
+					fetchMessages();
+				})
+				.subscribe();
+
+			console.log(messages);
+		}
 	});
 
 	let messageToSend = '';
@@ -20,18 +37,16 @@
 			console.log(messages);
 		}
 	};
-
 	const sendMessage = async () => {
-		if (messageToSend !== '') {
+		if (data?.session?.user?.email && messageToSend !== '') {
 			let { data: message, error } = await supabase
 				.from(TABLE_NAME)
-				.insert({ message: messageToSend, sender: 'freebreadstix' })
+				.insert({ message: messageToSend, sender: data.session.user.email })
 				.select()
 				.single();
 			if (error) {
 				console.log(error.message);
 			} else {
-				fetchMessages();
 				console.log(messageToSend);
 				messageToSend = '';
 			}
@@ -39,9 +54,17 @@
 	};
 </script>
 
-{#each messages as messageObject}
-	<li>{messageObject.sender}: {messageObject.message}</li>
-{/each}
-<!-- <label>, name, id -->
+<p>{authenticated.email}</p>
+
+{#if data?.session?.user}
+	{#each messages as messageObject}
+		<li>{messageObject.sender}: {messageObject.message}</li>
+	{/each}
+{:else}
+	<p>Log in to chat</p>
+{/if}
+
+<!-- fetch/show messages if user auth, sender = user auth  -->
 <input bind:value={messageToSend} />
 <button class="btn btn-primary" on:click={sendMessage}>Send</button>
+<!-- TODO: disable if not signed in -->
