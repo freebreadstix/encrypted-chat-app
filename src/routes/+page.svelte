@@ -4,16 +4,18 @@
 
 	export let data;
 
+	let session;
 	let messages = [];
-	let authenticated;
+	let messageToSend = '';
+
 	const TABLE_NAME = import.meta.env.VITE_SUPABASE_TABLE_NAME;
 
-	$: authenticated = data?.session?.user;
+	$: session = data?.session?.user;
 
 	onMount(() => {
-		fetchMessages();
-		console.log(authenticated);
-		if (authenticated) {
+		console.log(session);
+		if (session) {
+			fetchMessages();
 			const table_subscription = supabase
 				.channel('any')
 				.on('postgres_changes', { event: '*', schema: 'public', table: TABLE_NAME }, (data) => {
@@ -26,8 +28,6 @@
 		}
 	});
 
-	let messageToSend = '';
-
 	const fetchMessages = async () => {
 		let { data, error } = await supabase.from(TABLE_NAME).select('*');
 		if (error) {
@@ -38,10 +38,10 @@
 		}
 	};
 	const sendMessage = async () => {
-		if (data?.session?.user?.email && messageToSend !== '') {
+		if (session?.email && messageToSend !== '') {
 			let { data: message, error } = await supabase
 				.from(TABLE_NAME)
-				.insert({ message: messageToSend, sender: data.session.user.email })
+				.insert({ message: messageToSend, sender: session.user.email })
 				.select()
 				.single();
 			if (error) {
@@ -54,9 +54,9 @@
 	};
 </script>
 
-<p>{authenticated.email}</p>
-
-{#if data?.session?.user}
+{#if session}
+	<p>{session?.email}</p>
+	<p>Chat</p>
 	{#each messages as messageObject}
 		<li>{messageObject.sender}: {messageObject.message}</li>
 	{/each}
@@ -66,5 +66,4 @@
 
 <!-- fetch/show messages if user auth, sender = user auth  -->
 <input bind:value={messageToSend} />
-<button class="btn btn-primary" on:click={sendMessage}>Send</button>
-<!-- TODO: disable if not signed in -->
+<button class="btn btn-primary" disabled={!authenticated} on:click={sendMessage}>Send</button>
