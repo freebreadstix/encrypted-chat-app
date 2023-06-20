@@ -1,4 +1,4 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error, json, redirect } from '@sveltejs/kit';
 
 export const POST = async ({ locals }) => {
 	const { error } = await locals.sb.auth.signOut();
@@ -7,4 +7,6 @@ export const POST = async ({ locals }) => {
 		throw error(500, 'Something went wrong logging you out');
 	}
 	redirect(303, '/');
+
+	return new Response({ status: 200 });
 };

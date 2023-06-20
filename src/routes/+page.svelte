@@ -56,14 +56,17 @@
 
 {#if session}
 	<p>{session?.email}</p>
+	<form action="?/logout" method="POST"><button class="btn">Sign out</button></form>
 	<p>Chat</p>
 	{#each messages as messageObject}
 		<li>{messageObject.sender}: {messageObject.message}</li>
 	{/each}
 {:else}
 	<p>Log in to chat</p>
+	<a role="button" class="btn" href="/signin">Login</a>
+	<a role="button" class="btn" href="/signup">Register</a>
 {/if}
 
 <!-- fetch/show messages if user auth, sender = user auth  -->
 <input bind:value={messageToSend} />
-<button class="btn btn-primary" disabled={!authenticated} on:click={sendMessage}>Send</button>
+<button class="btn btn-primary" disabled={!session} on:click={sendMessage}>Send</button>
