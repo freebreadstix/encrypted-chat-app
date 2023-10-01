@@ -8,6 +8,8 @@
 	let messages = [];
 	let messageToSend = '';
 
+	let convoId = 1;
+
 	const TABLE_NAME = import.meta.env.VITE_SUPABASE_TABLE_NAME;
 
 	$: session = data?.session?.user;
@@ -29,7 +31,7 @@
 	});
 
 	const fetchMessages = async () => {
-		let { data, error } = await supabase.from(TABLE_NAME).select('*');
+		let { data, error } = await supabase.from(TABLE_NAME).select('*').eq('convo_id', convoId);
 		if (error) {
 			console.log('error', error);
 		} else {
@@ -41,7 +43,7 @@
 		if (session?.email && messageToSend !== '') {
 			let { data: message, error } = await supabase
 				.from(TABLE_NAME)
-				.insert({ message: messageToSend, sender: session.user.email })
+				.insert({ message: messageToSend, sender: session.email, convo_id: convoId })
 				.select()
 				.single();
 			if (error) {
