@@ -5,70 +5,97 @@
 	export let data;
 
 	let session;
-	let messages = [];
-	let messageToSend = '';
+	let conversationsData = [];
 
-	let convoId = 1;
+	let currentUserId = 1;
 
-	const TABLE_NAME = import.meta.env.VITE_SUPABASE_TABLE_NAME;
+	const CONVERSATION_TABLE = import.meta.env.VITE_SUPABASE_CONVERSATION_TABLE;
+	const MESSAGE_TABLE = import.meta.env.VITE_SUPABASE_MESSAGE_TABLE;
+	const USER_TABLE = import.meta.env.VITE_SUPABASE_USER_TABLE;
 
 	$: session = data?.session?.user;
 
 	onMount(() => {
-		console.log(session);
 		if (session) {
-			fetchMessages();
-			const table_subscription = supabase
-				.channel('any')
-				.on('postgres_changes', { event: '*', schema: 'public', table: TABLE_NAME }, (data) => {
-					console.log(data);
-					fetchMessages();
-				})
-				.subscribe();
-
-			console.log(messages);
+			fetchConversations();
 		}
 	});
 
-	const fetchMessages = async () => {
-		let { data, error } = await supabase.from(TABLE_NAME).select('*').eq('convo_id', convoId);
-		if (error) {
-			console.log('error', error);
-		} else {
-			messages = data;
-			console.log(messages);
-		}
+	const fetchConversations = async () => {
+		let conversationIds = await fetchConversationsIds();
+		conversationsData = await fetchConversationsData(conversationIds);
 	};
-	const sendMessage = async () => {
-		if (session?.email && messageToSend !== '') {
-			let { data: message, error } = await supabase
-				.from(TABLE_NAME)
-				.insert({ message: messageToSend, sender: session.email, convo_id: convoId })
-				.select()
-				.single();
-			if (error) {
-				console.log(error.message);
-			} else {
-				console.log(messageToSend);
-				messageToSend = '';
-			}
+
+	const fetchConversationsIds = async () => {
+		let conversationIds = [];
+
+		let { data, error } = await supabase
+			.from(USER_TABLE)
+			.select('conversation_ids')
+			.eq('id', currentUserId);
+		if (error) {
+			console.error('error', error);
+		} else if (data && data.length > 0) {
+			conversationIds = data[0].conversation_ids;
 		}
+		return conversationIds;
+	};
+
+	const fetchConversationsData = async (conversationIds) => {
+		let conversationsData = [];
+
+		await Promise.all(
+			conversationIds.map(async (conversationId) => {
+				let { data, error } = await supabase
+					.from(CONVERSATION_TABLE)
+					.select('*')
+					.eq('id', conversationId)
+					.order('last_message_id', { ascending: false });
+				if (error) {
+					console.error('error', error);
+				} else {
+					let conversationData = {};
+					conversationData.id = conversationId;
+
+					await Promise.all(
+						data[0]?.user_ids.map(async (userId) => {
+							if (userId !== currentUserId) {
+								let { data, error } = await supabase
+									.from(USER_TABLE)
+									.select('email')
+									.eq('id', userId);
+								if (error) {
+									console.error('error', error);
+								} else {
+									const userEmail = data[0].email;
+									conversationData.members
+										? conversationData.members.push(userEmail)
+										: (conversationData.members = [userEmail]);
+								}
+							}
+						})
+					);
+					conversationsData.push(conversationData);
+				}
+			})
+		);
+		return conversationsData;
 	};
 </script>
 
 {#if session}
 	<p>{session?.email}</p>
 	<form action="?/logout" method="POST"><button class="btn">Sign out</button></form>
-	<p>Chat</p>
-	{#each messages as messageObject}
-		<li>{messageObject.sender}: {messageObject.message}</li>
+	<p>Conversations</p>
+	{#each conversationsData as conversation}
+		<li>
+			<a href="/conversation/{conversation.id}">
+				{conversation.members}
+			</a>
+		</li>
 	{/each}
 {:else}
 	<p>Log in to chat</p>
 	<a role="button" class="btn" href="/signin">Login</a>
 	<a role="button" class="btn" href="/signup">Register</a>
 {/if}
-
-<!-- fetch/show messages if user auth, sender = user auth  -->
-<input bind:value={messageToSend} />
-<button class="btn btn-primary" disabled={!session} on:click={sendMessage}>Send</button>
