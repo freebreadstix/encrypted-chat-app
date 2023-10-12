@@ -6,6 +6,7 @@
 
 	let session;
 	let conversationsData = [];
+	let userQuery = '';
 
 	let currentUserId = 1;
 
@@ -81,12 +82,51 @@
 		);
 		return conversationsData;
 	};
+
+	/**
+	 * search bar
+	 * press search
+	 * if conversation already made, route to page. else new conversation page w no id
+	 * if not, create conversation row w users, add convo to user rows --- do this on first msg send? yes
+	 */
+
+	const checkUserExists = async (query) => {
+		let { data, error } = await supabase.from(USER_TABLE).select('*').eq('email', query);
+		if (error) {
+			console.error('error', error);
+		} else {
+			if (data.length > 0) {
+				return [true, data];
+			}
+		}
+		return [false, {}];
+	};
+
+	const getCommonConversations = (userQuery, conversationsData) => {
+		return conversationsData.filter((data) => {
+			return data.members.includes(userQuery);
+		});
+	};
+
+	const searchConversation = async () => {
+		console.log(userQuery);
+		let [userExists, userData] = await checkUserExists(userQuery);
+		let conversations = [];
+
+		if (userExists) {
+			conversations = getCommonConversations(userQuery, conversationsData);
+		}
+		console.log(userExists, conversations);
+		return [userExists, conversations];
+	};
 </script>
 
 {#if session}
 	<p>{session?.email}</p>
 	<form action="?/logout" method="POST"><button class="btn">Sign out</button></form>
 	<p>Conversations</p>
+	<input bind:value={userQuery} />
+	<button class="btn btn-primary" disabled={!session} on:click={searchConversation}>Send</button>
 	{#each conversationsData as conversation}
 		<li>
 			<a href="/conversation/{conversation.id}">
