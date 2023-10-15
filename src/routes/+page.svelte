@@ -1,12 +1,14 @@
 <script>
+	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/db';
 	import { onMount } from 'svelte';
 
 	export let data;
 
 	let session;
-	let conversationsData = [];
 	let userQuery = '';
+	let conversationsData = [];
+	let renderedConversations = [];
 
 	let currentUserId = 1;
 
@@ -25,6 +27,7 @@
 	const fetchConversations = async () => {
 		let conversationIds = await fetchConversationsIds();
 		conversationsData = await fetchConversationsData(conversationIds);
+		renderedConversations = conversationsData;
 	};
 
 	const fetchConversationsIds = async () => {
@@ -57,6 +60,7 @@
 				} else {
 					let conversationData = {};
 					conversationData.id = conversationId;
+					conversationData.member_ids = data[0].user_ids;
 
 					await Promise.all(
 						data[0]?.user_ids.map(async (userId) => {
@@ -83,13 +87,6 @@
 		return conversationsData;
 	};
 
-	/**
-	 * search bar
-	 * press search
-	 * if conversation already made, route to page. else new conversation page w no id
-	 * if not, create conversation row w users, add convo to user rows --- do this on first msg send? yes
-	 */
-
 	const checkUserExists = async (query) => {
 		let { data, error } = await supabase.from(USER_TABLE).select('*').eq('email', query);
 		if (error) {
@@ -110,14 +107,34 @@
 
 	const searchConversation = async () => {
 		console.log(userQuery);
-		let [userExists, userData] = await checkUserExists(userQuery);
-		let conversations = [];
+		renderedConversations = [];
+		let [userExists, userData] = await checkUserExists(userQuery); // TODO: Support multiple users in query
 
 		if (userExists) {
-			conversations = getCommonConversations(userQuery, conversationsData);
+			let commonConversations = getCommonConversations(userQuery, conversationsData);
+			renderedConversations = commonConversations;
+			if (commonConversations.length === 0) {
+				renderedConversations = [
+					{ id: -1, members: [userQuery], user_ids: [currentUserId, userData[0].id] }
+				];
+			}
 		}
-		console.log(userExists, conversations);
-		return [userExists, conversations];
+	};
+
+	const checkNewConversation = async (event) => {
+		if (+event.target.dataset.id === -1) {
+			const conversationData = renderedConversations[event.target.dataset.index];
+			const { data, error } = await supabase
+				.from(CONVERSATION_TABLE)
+				.insert({ user_ids: conversationData.user_ids })
+				.select();
+			if (error) {
+				console.error('error', error);
+			} else {
+				event.target.href = `/conversation/${data[0].id}`;
+			}
+		}
+		goto(event.target.href);
 	};
 </script>
 
@@ -126,11 +143,16 @@
 	<form action="?/logout" method="POST"><button class="btn">Sign out</button></form>
 	<p>Conversations</p>
 	<input bind:value={userQuery} />
-	<button class="btn btn-primary" disabled={!session} on:click={searchConversation}>Send</button>
-	{#each conversationsData as conversation}
+	<button class="btn btn-primary" disabled={!session} on:click={searchConversation}>Search</button>
+	{#each renderedConversations as conversation, i}
 		<li>
-			<a href="/conversation/{conversation.id}">
-				{conversation.members}
+			<a
+				href="/conversation/{conversation.id}"
+				data-id={conversation.id}
+				data-index={i}
+				on:click|preventDefault={(event) => checkNewConversation(event)}
+			>
+				{conversation.members.join(', ')}
 			</a>
 		</li>
 	{/each}
