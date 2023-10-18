@@ -13,7 +13,6 @@
 	let currentUserId = 1;
 
 	const CONVERSATION_TABLE = import.meta.env.VITE_SUPABASE_CONVERSATION_TABLE;
-	const MESSAGE_TABLE = import.meta.env.VITE_SUPABASE_MESSAGE_TABLE;
 	const USER_TABLE = import.meta.env.VITE_SUPABASE_USER_TABLE;
 
 	$: session = data?.session?.user;
@@ -50,29 +49,31 @@
 
 		await Promise.all(
 			conversationIds.map(async (conversationId) => {
-				let { data, error } = await supabase
+				// For each convo in users convos, get data
+				const { data, error } = await supabase
 					.from(CONVERSATION_TABLE)
 					.select('*')
 					.eq('id', conversationId)
 					.order('last_message_id', { ascending: false });
 				if (error) {
 					console.error('error', error);
-				} else {
+				} else if (data[0].last_message_id !== -1) {
 					let conversationData = {};
 					conversationData.id = conversationId;
 					conversationData.member_ids = data[0].user_ids;
 
 					await Promise.all(
 						data[0]?.user_ids.map(async (userId) => {
+							// For each user, get email
 							if (userId !== currentUserId) {
-								let { data, error } = await supabase
+								const { data: userResponse, error } = await supabase
 									.from(USER_TABLE)
 									.select('email')
 									.eq('id', userId);
 								if (error) {
 									console.error('error', error);
 								} else {
-									const userEmail = data[0].email;
+									let userEmail = userResponse[0].email;
 									conversationData.members
 										? conversationData.members.push(userEmail)
 										: (conversationData.members = [userEmail]);
@@ -115,10 +116,51 @@
 			renderedConversations = commonConversations;
 			if (commonConversations.length === 0) {
 				renderedConversations = [
-					{ id: -1, members: [userQuery], user_ids: [currentUserId, userData[0].id] }
+					{
+						id: -1,
+						members: [userQuery],
+						userIds: [currentUserId, userData[0].id],
+						usersData: [userData]
+					}
 				];
 			}
 		}
+	};
+
+	const resetSearchConversation = () => {
+		renderedConversations = conversationsData;
+		userQuery = '';
+	};
+
+	const addToUserConversations = async (userId, newConversations) => {
+		const { error } = await supabase
+			.from(USER_TABLE)
+			.update({ conversation_ids: newConversations })
+			.eq('id', userId)
+			.select();
+		if (error) {
+			console.error('error', error);
+		}
+	};
+
+	const addToUsersConversations = async (userIds, convoId) => {
+		// Update each users conversations to include new conversation
+		// req: ids of users who need convos update, convoId
+		await Promise.all(
+			userIds.map(async (userId) => {
+				const { data, error } = await supabase
+					.from(USER_TABLE)
+					.select('conversation_ids')
+					.eq('id', userId);
+				if (error) {
+					console.error('error', error);
+				} else {
+					const userConversations = data[0].conversation_ids;
+					userConversations.push(convoId);
+					await addToUserConversations(userId, userConversations);
+				}
+			})
+		);
 	};
 
 	const checkNewConversation = async (event) => {
@@ -126,12 +168,13 @@
 			const conversationData = renderedConversations[event.target.dataset.index];
 			const { data, error } = await supabase
 				.from(CONVERSATION_TABLE)
-				.insert({ user_ids: conversationData.user_ids })
+				.insert({ user_ids: conversationData.userIds })
 				.select();
 			if (error) {
 				console.error('error', error);
 			} else {
 				event.target.href = `/conversation/${data[0].id}`;
+				addToUsersConversations(conversationData.userIds, data[0].id);
 			}
 		}
 		goto(event.target.href);
@@ -144,6 +187,9 @@
 	<p>Conversations</p>
 	<input bind:value={userQuery} />
 	<button class="btn btn-primary" disabled={!session} on:click={searchConversation}>Search</button>
+	<button class="btn btn-secondary" disabled={!session} on:click={resetSearchConversation}
+		>Clear</button
+	>
 	{#each renderedConversations as conversation, i}
 		<li>
 			<a

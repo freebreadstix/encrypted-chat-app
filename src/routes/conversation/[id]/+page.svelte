@@ -8,8 +8,9 @@
 	let messages = [];
 	let messageToSend = '';
 
-	let convoId = data.conversationId;
+	const convoId = data.conversationId;
 
+	const CONVERSATION_TABLE = import.meta.env.VITE_SUPABASE_CONVERSATION_TABLE;
 	const MESSAGE_TABLE = import.meta.env.VITE_SUPABASE_MESSAGE_TABLE;
 
 	$: session = data?.session?.user;
@@ -39,15 +40,21 @@
 	};
 	const sendMessage = async () => {
 		if (session?.email && messageToSend !== '') {
-			let { data: message, error } = await supabase
+			let { data, insertMsgError } = await supabase
 				.from(MESSAGE_TABLE)
 				.insert({ message: messageToSend, sender: session.email, conversation_id: convoId })
-				.select()
-				.single();
-			if (error) {
-				console.error(error.message);
+				.select();
+			if (insertMsgError) {
+				console.error(insertMsgError.message);
 			} else {
 				messageToSend = '';
+				let { updateConvoError } = await supabase
+					.from(CONVERSATION_TABLE)
+					.update({ last_message_id: data[0].id })
+					.eq('id', convoId);
+				if (updateConvoError) {
+					console.error(updateConvoError.message);
+				}
 			}
 		}
 	};
