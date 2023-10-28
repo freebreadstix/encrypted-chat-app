@@ -1,5 +1,6 @@
 <script>
 	import { goto } from '$app/navigation';
+	import { getUserData } from '$lib/auth';
 	import { supabase } from '$lib/db';
 	import { onMount } from 'svelte';
 
@@ -7,19 +8,26 @@
 
 	let session;
 	let userQuery = '';
+
+	let userData;
 	let conversationsData = [];
 	let renderedConversations = [];
-
-	let currentUserId = 1;
 
 	const CONVERSATION_TABLE = import.meta.env.VITE_SUPABASE_CONVERSATION_TABLE;
 	const USER_TABLE = import.meta.env.VITE_SUPABASE_USER_TABLE;
 
 	$: session = data?.session?.user;
+	$: userData = session ? getUserData(session) : {};
 
-	onMount(() => {
+	/**
+	 * try: load userData in layout
+	 * need to move login/logout to layout, store w login/logout?
+	 */
+
+	onMount(async () => {
 		if (session) {
-			fetchConversations();
+			userData = await getUserData(session);
+			await fetchConversations();
 		}
 	});
 
@@ -35,7 +43,7 @@
 		let { data, error } = await supabase
 			.from(USER_TABLE)
 			.select('conversation_ids')
-			.eq('id', currentUserId);
+			.eq('id', userData?.id);
 		if (error) {
 			console.error('error', error);
 		} else if (data && data.length > 0) {
@@ -65,7 +73,7 @@
 					await Promise.all(
 						data[0]?.user_ids.map(async (userId) => {
 							// For each user, get email
-							if (userId !== currentUserId) {
+							if (userId !== userData?.id) {
 								const { data: userResponse, error } = await supabase
 									.from(USER_TABLE)
 									.select('email')
@@ -109,9 +117,9 @@
 	const searchConversation = async () => {
 		console.log(userQuery);
 		renderedConversations = [];
-		let [userExists, userData] = await checkUserExists(userQuery); // TODO: Support multiple users in query
+		let [queryUserExists, queryUserData] = await checkUserExists(userQuery); // TODO: Support multiple users in query
 
-		if (userExists) {
+		if (queryUserExists) {
 			let commonConversations = getCommonConversations(userQuery, conversationsData);
 			renderedConversations = commonConversations;
 			if (commonConversations.length === 0) {
@@ -119,8 +127,8 @@
 					{
 						id: -1,
 						members: [userQuery],
-						userIds: [currentUserId, userData[0].id],
-						usersData: [userData]
+						userIds: [userData?.id, queryUserData[0].id],
+						usersData: [queryUserData]
 					}
 				];
 			}

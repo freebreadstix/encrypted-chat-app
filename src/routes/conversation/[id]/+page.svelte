@@ -15,9 +15,9 @@
 
 	$: session = data?.session?.user;
 
-	onMount(() => {
+	onMount(async () => {
 		if (session) {
-			fetchMessages();
+			await fetchMessages();
 			const table_subscription = supabase
 				.channel('any')
 				.on('postgres_changes', { event: '*', schema: 'public', table: MESSAGE_TABLE }, (data) => {
@@ -40,7 +40,7 @@
 	};
 	const sendMessage = async () => {
 		if (session?.email && messageToSend !== '') {
-			let { data, insertMsgError } = await supabase
+			let { data, error: insertMsgError } = await supabase
 				.from(MESSAGE_TABLE)
 				.insert({ message: messageToSend, sender: session.email, conversation_id: convoId })
 				.select();
@@ -48,7 +48,7 @@
 				console.error(insertMsgError.message);
 			} else {
 				messageToSend = '';
-				let { updateConvoError } = await supabase
+				let { error: updateConvoError } = await supabase
 					.from(CONVERSATION_TABLE)
 					.update({ last_message_id: data[0].id })
 					.eq('id', convoId);

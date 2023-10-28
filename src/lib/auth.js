@@ -1,16 +1,12 @@
 import { supabase } from '$lib/db';
 
-const signUpWithEmail = async (email, password) => {
-	const {
-		data: { user, session },
-		error
-	} = await supabase.auth.signUp({ email, password });
+const USER_TABLE = import.meta.env.VITE_SUPABASE_USER_TABLE;
+
+export const getUserData = async (session) => {
+	const { data, error } = await supabase.from(USER_TABLE).select('*').eq('email', session?.email);
 	if (error) {
-		// log error, return http code
-		console.error(error.status);
-		console.error(error.name);
-		console.error(error.message);
-		console.error(error);
-		throw error;
+		console.error('error', error.message);
+	} else {
+		return data[0];
 	}
 };
