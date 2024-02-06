@@ -1,5 +1,5 @@
 import { isAuthApiError } from '@supabase/supabase-js';
-import { fail, json, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 
 export const actions = {
 	signup: async ({ locals, request }) => {
@@ -19,8 +19,6 @@ export const actions = {
 		}
 		console.log(data);
 
-		// throw redirect(303, '/');
-
-		return json({});
+		throw redirect(303, '/');
 	}
 };

@@ -7,4 +7,5 @@
 		<input type="password" name="password" />
 		<button type="submit" class="btn btn-primary">Login</button>
 	</form>
+	<a role="button" class="btn" href="/forgotpassword">Forgot Password?</a>
 </main>
