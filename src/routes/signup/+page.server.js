@@ -11,11 +11,11 @@ export const actions = {
 
 		if (isAuthApiError(error)) {
 			console.error(error);
-			return fail(500);
+			return fail(500, { message: error.message });
 		}
 		if (error) {
 			console.error(error);
-			return fail(400);
+			return fail(400, { message: error.message });
 		}
 		console.log(data);
 

@@ -19,14 +19,9 @@
 		submitMessage = 'Success! Redirecting you to login';
 		goto('/');
 	};
-	// TODO: if success redirect to home page, else show error
 </script>
 
 <main>
-	<!-- 
-        TODO: 
-        make reset password client side, or pass to server side
-     -->
 	<h1>Reset Password</h1>
 	<input type="password" name="password" bind:value={password} />
 	<button type="submit" class="btn btn-primary" on:click={resetPassword}>Reset</button>
