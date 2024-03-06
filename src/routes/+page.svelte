@@ -40,6 +40,7 @@
 	const fetchConversationsIds = async () => {
 		let conversationIds = [];
 
+		// TODO: FIX DOUBLE GET USERDATA
 		let { data, error } = await supabase
 			.from(USER_TABLE)
 			.select('conversation_ids')
