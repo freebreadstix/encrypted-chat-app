@@ -14,6 +14,8 @@
 	// 		subscription.unsubscribe();
 	// 	};
 	// });
+	import Navbar from './Navbar.svelte'
 </script>
+<Navbar />
 
 <slot />
