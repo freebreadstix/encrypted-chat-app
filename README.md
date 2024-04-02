@@ -37,6 +37,22 @@ You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
 
-# Deployment to vercel
+# Setup steps
+
+### Supabase
+
+Configure tables in supabase, get table and config env vars
+
+### Stripe
+
+- bank details
+- configure business/product
+
+* [Get payment link](https://dashboard.stripe.com/payment-links)
+
+* Get Stripe Secret and Public key
+* [Add webhook endpoint](https://docs.stripe.com/webhooks) for "[https://site-url]/stripe/webhooks"
+
+## Deployment to Vercel
 
 [`add site url`](https://supabase.com/docs/guides/auth/concepts/redirect-urls)
