@@ -36,13 +36,6 @@
 	}
 </script>
 
-<!-- 
-    Make store for user data i.e. session, email
-    if cust paying: stop subscription else start
-	start:
-	send to payment link w customer_id query param
-	webhook update db on payment
--->
 <hr />
 <h1>Subscription</h1>
 {#if session && userData.subscription === 'paid'}
